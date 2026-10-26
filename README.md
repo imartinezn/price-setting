@@ -23,7 +23,8 @@ The repository contains the following files:
 - example_inputs.xlsx
 
 
-Authors
+Authors:
+
 Ignacio Martinez, Directorate-General for Energy, European Commission, ignacio.martinez1@ec.europa.eu
 
 Derck Koolen, Directorate-General for Energy, European Commission & School of Economics, Utrecht University, derck.koolen@ec.europa.eu
