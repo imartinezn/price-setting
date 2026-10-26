@@ -25,6 +25,9 @@ The repository contains the following files:
 
 Authors
 Ignacio Martinez, Directorate-General for Energy, European Commission, ignacio.martinez1@ec.europa.eu
+
 Derck Koolen, Directorate-General for Energy, European Commission & School of Economics, Utrecht University, derck.koolen@ec.europa.eu
+
 Massimo Tognoni, Directorate-General for Energy, European Commission, massimo.tognoni@ec.europa.eu
+
 Sebastian Sterl, Directorate-General for Energy, European Commission & Vrije Universiteit Brussel (VUB), Sebastian.Sterl@vub.be
