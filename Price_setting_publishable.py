@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
 
 # Code Price-setting tipping points in decarbonising EU electricity markets
-# Author: I.M. with support from Large Language Models (LLM)
+# Author: I.M. (2026) with support from Large Language Models (LLM)
 
 
 # %% Cell 0 - CONTROL FILE
