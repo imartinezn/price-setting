@@ -3,7 +3,10 @@
 
 ## Introduction
 
-Here we present the code behind the manuscript "Price-setting tipping points in decarbonising EU electricity markets" (in preparation), an open source framework for reverse-engineering price-setting technologies based on observed generation, cross-border flows, wholesale prices, and commodity costs. This framework is used to assess a decade of hourly data across EU bidding zones and capture technological marginality across the full generation spectrum, from variable renewables (VRE, i.e. solar and wind power) and hydropower to nuclear and fossil-powered units. 
+This repository contains the code behind the manuscript "Price-setting tipping points in decarbonising EU electricity markets" (in preparation), an open source framework for reverse-engineering price-setting technologies based on observed generation, cross-border flows, wholesale prices, and commodity costs. 
+
+This framework is used to assess a decade of hourly data across EU bidding zones and capture technological marginality across the full generation spectrum, from variable renewables (VRE, i.e. solar and wind power) and hydropower to nuclear and fossil-powered units. 
+
 The gained empirical insights can inform energy policy across multiple domains: clarifying the coupling of electricity prices and fossil fuel costs, quantifying the effect of increased VRE generation in displacing fossil fuel price-setters, and illustrating how interconnections affect price-setting.
 
 ## Diagram
@@ -11,14 +14,21 @@ Below, a schematic diagram of the logic of the price-setting identifying algorit
 
 # <img src="./diagram/FigSupplA.png" align="right" />
 
-## Repository Structure
 
-This price-setting framework comprises one executable python script, under the control of an Excel-based "control_file" and two more Excel files to support the process of the user's commodity and price, generation, flows, loads and reservoir level data.
+## Installation
+
+This price-setting framework comprises one executable Python script, under the control of an Excel-based "control file" and two more Excel files to support the process of the user's commodity and price, generation, flows, loads and reservoir level data.
 The repository contains the following files:
-* **Price_setting_publishable.py** (the actual code)
-* **control_file.xlsx** (providing crucial input parameters to the code)
-* **user_commodity_file.xlsx** (providing commodity time series to the code)
-* **example_inputs.xlsx** (providing generation and flow time series to the code; optional)
+
+* _Price_setting_publishable.py_ (the actual code)
+* _control_file.xlsx_ (the control file, providing crucial input parameters to the code)
+* _user_commodity_file.xlsx_ (providing commodity time series to the code)
+* _example_inputs.xlsx_ (providing generation and flow time series to the code; optional)
+
+The most recent version of the algorithm was written for Python 3.9.
+
+The [envs](https://github.com/imartinezn/price-setting/tree/master/envs) folder contains a .yml configuration file to install the needed packages to run the code.
+
 
 ## License
 See also the [LICENSE](./LICENSE.md) file.

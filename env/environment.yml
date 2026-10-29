@@ -18,4 +18,4 @@ dependencies:
       # Platform; not needed to run the main pipeline:
       - entsoe-py==0.7.8
       # Platts mode only (COMMODITY_SOURCE=platts, licensed S&P Global feed):
-      # pip install spgci==0.0.25
+      - spgci==0.0.25
