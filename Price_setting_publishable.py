@@ -1563,7 +1563,7 @@ if delu_cols:
     delu_2026 = df_gen.loc[df_gen.index.year == 2026, delu_cols].sum().sum() if (df_gen.index.year == 2026).any() else 0
     print(f"     2015: {delu_2015:,.0f} MWh {'(should be 0)' if delu_2015 == 0 else ''}")
     print(f"     2019: {delu_2019:,.0f} MWh {'' if delu_2019 > 0 else ''}")
-    print(f"     2026: {delu_2026:,.0f} MWh {' if delu_2026 > 0 else '— (no data yet)'}")
+    print(f"     2026: {delu_2026:,.0f} MWh {'OK' if delu_2026 > 0 else '- (no data yet)'}")
     print(f"     Sample: {delu_cols[:3]}")
 
 # AT
@@ -1575,7 +1575,7 @@ if at_cols:
     at_2019 = df_gen.loc[df_gen.index.year == 2019, at_cols].sum().sum() if (df_gen.index.year == 2019).any() else 0
     at_2026 = df_gen.loc[df_gen.index.year == 2026, at_cols].sum().sum() if (df_gen.index.year == 2026).any() else 0
     print(f"     2015: {at_2015:,.0f} MWh {'(should be 0)' if at_2015 == 0 else ''}")
-    print(f"     2019: {at_2019:,.0f} MWh {' if at_2019 > 0 else ''}")
+    print(f"     2019: {at_2019:,.0f} MWh {'OK' if at_2019 > 0 else 'X'}")
     print(f"     2026: {at_2026:,.0f} MWh {'' if at_2026 > 0 else '— (no data yet)'}")
     print(f"     Sample: {at_cols[:3]}")
 
