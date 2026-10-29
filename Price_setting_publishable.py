@@ -5981,7 +5981,7 @@ def calculate_country_fuel_mix_aggregated(all_zone_results, country, zones, year
     
     # Validation
     total_pct = sum(fuel_mix.values())
-    print(f"\n  {'Total':30s}: {total_pct:6.2f}% {' if abs(total_pct - 100) < 0.01 else ' ERROR!'}")
+    print(f"\n  {'Total':30s}: {total_pct:6.2f}% {'OK' if abs(total_pct - 100) < 0.01 else 'ERROR!'}")
     
     # ========================================
     # ZONE BREAKDOWN
