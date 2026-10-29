@@ -97,6 +97,13 @@ RESERVOIR_FILLING_PROXIES = {r['zone']: r['reservoir_proxy']
 _hr = CFG.zones.set_index('zone')['hydro_reservoir'].astype(str).str.upper() == 'TRUE'
 HYDRO_RESERVOIR_ZONES         = _hr[_hr].index.tolist()
 ZONES_EXCLUDE_HYDRO_RESERVOIR = _hr[~_hr].index.tolist()
+# ---- zone codes recognizable when parsing column names / labels --------------
+# Derived from the zones sheet: only configured zones are recognized. Codes that
+# occur in the raw ENTSO-E files but are not in the zones sheet (e.g. BA, CY,
+# MT, UA, IE_SEM, IT_FOGN, IT_ROSN) are outside the analysis scope; their
+# columns fall through to the parser's heuristics and are never consumed.
+KNOWN_ZONES = set(ALL_ZONES)
+
 _badp = [z for z in RESERVOIR_FILLING_PROXIES if z not in HYDRO_RESERVOIR_ZONES]
 if _badp:
     print(f" reservoir_proxy set on zones marked hydro_reservoir=FALSE: {_badp}")
@@ -275,7 +282,7 @@ if _missp:
     raise ValueError(f"paths sheet missing keys: {sorted(_missp)} "
                      f"(single-time-series layout expected)")
 
-END_2026 = CFG.END_2026
+END_DATE = CFG.END_DATE
 START_DATE = CFG.START_DATE
 
 UNIFORM_TOLERANCE    = CFG.UNIFORM_TOLERANCE
@@ -288,7 +295,7 @@ YEAR_H = CFG.YEAR_HEADLINE
 
 print("=" * 70)
 print(f" Control file loaded: {CONTROL_FILE.name}")
-print(f"   {CFG.START_DATE.date()} -> {CFG.END_2026.date()} | headline {CFG.YEAR_HEADLINE} | "
+print(f"   {CFG.START_DATE.date()} -> {CFG.END_DATE.date()} | headline {CFG.YEAR_HEADLINE} | "
       f"headline-only: {CFG.OUTPUT_HEADLINE_ONLY}")
 print(f"   zones {len(ALL_ZONES)} ({len(ZONES_EU_ONLY)} EU) | neighbour pairs "
       f"{sum(len(v) for v in NEIGHBOURS.values())} | proxies {len(RESERVOIR_FILLING_PROXIES)}")
@@ -301,7 +308,7 @@ print(f"   hydro params: reservoir {len(HYDRO_RESERVOIR_PARAMS)} | pumped {len(P
 print("=" * 70)
 
 
-# In[ ]:
+
 
 
 # %% Cell 1 - IMPORTS and TIMER
@@ -322,7 +329,7 @@ print("=" * 80)
 # ## 1. Import Required Libraries
 # Import pandas, numpy, plotly, pathlib, datetime, spgci for Platts API, and configure display settings.
 
-# In[2]:
+
 
 
 # Import Required Libraries
@@ -358,7 +365,7 @@ print(f"Platts API (spgci) available: {SPGCI_AVAILABLE}")
 # ## 2. Define Global Configuration (Paths, All BZN, Neighbours)
 # Set BASE_DIR, define paths to new ENTSO-E CSVs, create ALL_ZONES list, and define NEIGHBOURS dictionary for all 47 bidding zones.
 
-# In[3]:
+
 
 
 # Base directory for data files
@@ -370,10 +377,10 @@ DATA_DIR   = CFG.paths['DATA_DIR']
 # UPDATED: PATHS TO ENTSO-E CSV FILES
 # ========================================
 
-# 2019-2025 period
 
 
-# In[ ]:
+
+
 
 
 # %% CELL 3 - GENERATION LOAD 
@@ -401,22 +408,8 @@ print("=" * 80)
 
 
 
-# COMPREHENSIVE ZONE LIST (includes DE_AT_LU for 2015-2018)
-KNOWN_ZONES = {
-    # Single zones
-    'AT', 'BE', 'BG', 'CH', 'CY', 'CZ', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 
-    'HU', 'LT', 'LV', 'NL', 'PL', 'PT', 'RO', 'RS', 'SI', 'SK', 'AL', 'BA', 'ME', 'MK', 'MT', 'UA',
-    
-    # Compound zones (underscore)
-    'DE_LU', 'DE_AT_LU', 'IE_SEM',  # Added DE_AT_LU
-    
-    # Nordic zones with numbers
-    'DK_1', 'DK_2', 'NO_1', 'NO_2', 'NO_3', 'NO_4', 'NO_5', 'SE_1', 'SE_2', 'SE_3', 'SE_4',
-    
-    # Italian zones
-    'IT_NORD', 'IT_CNOR', 'IT_CSUD', 'IT_SUD', 'IT_SICI', 'IT_SARD', 
-    'IT_BRNN', 'IT_FOGN', 'IT_ROSN', 'IT_CALA',
-}
+# KNOWN_ZONES: defined in Cell 0 from the zones sheet + RAW_DATA_ONLY_ZONES
+# [CFG-OWNED, local def removed]
 
 
 def extract_zone_from_parts(parts):
@@ -704,50 +697,14 @@ print(f"\n{'='*80}")
 print(f"DATA LOADED AND NORMALIZED (2015-2026)")
 print(f"{'='*80}")
 
-# Check sample years
-gen_cols = [c for c in df_gen.columns if c.startswith('gen_')]
 
-for year in [2015, 2018, 2019, 2025, 2026]:
-    mask_year = (df_gen.index.year == year)
-    if mask_year.sum() > 0:
-        total_year = df_gen.loc[mask_year, gen_cols].sum().sum()
-        print(f"\n📊 Year {year}:")
-        print(f"   Rows: {mask_year.sum():,}")
-        print(f"   Total generation: {total_year:,.0f} MWh")
-
-# Sample zone check across periods
-test_zones = ['DE_AT_LU', 'DE_LU', 'AT', 'DK_1', 'FR']
-print(f"\n📍 Sample zones:")
-
-for zone in test_zones:
-    zone_cols = [c for c in gen_cols if c.endswith(f'_{zone}')]
-    
-    if zone_cols:
-        # Check 2015, 2018, 2019, and 2026
-        total_2015 = df_gen.loc[df_gen.index.year == 2015, zone_cols].sum().sum() if (df_gen.index.year == 2015).any() else 0
-        total_2018 = df_gen.loc[df_gen.index.year == 2018, zone_cols].sum().sum() if (df_gen.index.year == 2018).any() else 0
-        total_2019 = df_gen.loc[df_gen.index.year == 2019, zone_cols].sum().sum() if (df_gen.index.year == 2019).any() else 0
-        total_2026 = df_gen.loc[df_gen.index.year == 2026, zone_cols].sum().sum() if (df_gen.index.year == 2026).any() else 0
-        
-        status_2015 = "OK" if total_2015 > 0 else "—"
-        status_2018 = "OK" if total_2018 > 0 else "—"
-        status_2019 = "OK" if total_2019 > 0 else "—"
-        status_2026 = "OK" if total_2026 > 0 else "—"
-        
-        print(f"   {zone}: {len(zone_cols)} cols")
-        print(f"      2015: {status_2015} {total_2015:,.0f} MWh")
-        print(f"      2018: {status_2018} {total_2018:,.0f} MWh")
-        print(f"      2019: {status_2019} {total_2019:,.0f} MWh")
-        print(f"      2026: {status_2026} {total_2026:,.0f} MWh")
-    else:
-        print(f"   {zone}: NO COLUMNS")
 
 print(f"\n{'='*80}")
 print(f"CELL 3.5 COMPLETE - df_gen ready for use (2015-2026)")
 print(f"{'='*80}")
 
 
-# In[ ]:
+
 
 
 # %% CELL 4 - COLUMN MAPPINGS (research Cell 4)
@@ -768,7 +725,7 @@ print("=" * 80)
 # ========================================
 # PATTERN DICTIONARY
 # ========================================
-
+# Spelling-variant patterns; semantic mapping lives in gen_tech_map; migration planned to control_file
 GEN_COL_PATTERNS = {
     'gas': {
         'new_patterns': [
@@ -1213,12 +1170,12 @@ print(f"   Consumption patterns: hydro_pumped_consumption, energy_storage_consum
 print(f"   Zone handling: DE_AT_LU (2015-2018), DE_LU (2019+), AT (2019+) as separate zones")
 
 
-# In[ ]:
+
 
 
 # %% CELL 5 - PRICES/LOAD/FLOWS (research Cell 5)
 # %% ==========================================================================
-# Cell 5: Load ENTSO-E Data with Hybrid Column Processing (2015-2026)
+# Cell 5: Loads the single full-period input file per data type (control file, paths sheet)
 # Works with pre-normalized df_gen from Cell 3.5
 # Handles DE_AT_LU, DE_LU, and AT as separate zones
 # FX conversion DISABLED - prices already converted in source CSV
@@ -1235,188 +1192,68 @@ print("LOADING ENTSO-E DATA (PRICES, LOAD, FLOWS) - 2015-2026")
 print("="*80)
 
 
-def load_entsoe_data_combined(data_paths_2015, data_paths_2019, data_paths_2026):
+def load_entsoe_data(data_paths):
     """
-    Load all ENTSO-E data files from all three periods and combine them.
-    Returns DataFrames with DATETIME INDEX
-    Checks if generation data already loaded in Cell 3.5
-    Combines 2015-2018, 2019-2025, and 2026 data
+    Load the ENTSO-E input files - one full-period file per data type, as
+    configured in the control file's paths sheet - into DataFrames with a
+    DatetimeIndex. Reuses the pre-normalized df_gen from Cell 3.5 if present.
+    Period-agnostic: the analysis window is set by START_DATE / END_DATE in
+    the control file; zone validity by the zones sheet.
     """
     data = {}
-    
-    datetime_cols = ['datetime', 'DateTime', 'Datetime', 'timestamp', 'Timestamp', 'time', 'Time', 'date', 'Date']
-    
+    datetime_cols = ['datetime', 'DateTime', 'Datetime', 'timestamp', 'Timestamp',
+                     'time', 'Time', 'date', 'Date']
+
     for key in ['prices', 'generation', 'load', 'flows']:
         print(f"\n{'='*60}")
         print(f"Loading {key} data...")
         print(f"{'='*60}")
-        
-        #   SPECIAL HANDLING: Check if generation data already loaded in Cell 3.5
+
+        # Reuse generation already loaded and normalized in Cell 3.5
         if key == 'generation':
             if 'df_gen' in globals() and df_gen is not None and not df_gen.empty:
-                print(f"    Generation data already loaded and normalized in Cell 3.5")
+                print(f"  ℹ️  Generation data already loaded and normalized in Cell 3.5")
                 print(f"  ✓ Using existing df_gen: {df_gen.shape[0]:,} rows × {df_gen.shape[1]} columns")
                 data[key] = df_gen
                 continue
-            else:
-                print(f"    df_gen not found - will load and combine from files")
-        
-        # Get paths for all three periods
-        path_2015 = data_paths_2015.get(key)
-        path_2019 = data_paths_2019.get(key)
-        path_2026 = data_paths_2026.get(key)
-        
-        dfs_to_combine = []
-        
-        # Load 2015-2018 data
-        if path_2015 and Path(path_2015).exists():
-            print(f"\n  Loading 2015-2018 file: {path_2015}")
+            print(f"  ⚠️  df_gen not found - will load from file")
+
+        path = data_paths.get(key)
+        if not (path and Path(path).exists()):
+            raise FileNotFoundError(f"Input file for '{key}' not found: {path} "
+                                    f"(check the paths sheet of the control file)")
+
+        print(f"  Loading: {path}")
+        df_preview = pd.read_csv(path, nrows=5)
+        datetime_col = None
+        for col in df_preview.columns:
+            if (col.lower() in [c.lower() for c in datetime_cols]
+                    or 'date' in col.lower() or 'time' in col.lower()):
+                datetime_col = col
+                break
+
+        if datetime_col:
+            df = pd.read_csv(path, index_col=datetime_col, parse_dates=True)
+        else:
+            df = pd.read_csv(path, index_col=0, parse_dates=True)
+
+        # Ensure tz-naive DatetimeIndex
+        if not isinstance(df.index, pd.DatetimeIndex):
             try:
-                df_preview = pd.read_csv(path_2015, nrows=5)
-                datetime_col = None
-                
-                for col in df_preview.columns:
-                    if col.lower() in [c.lower() for c in datetime_cols]:
-                        datetime_col = col
-                        break
-                    if 'date' in col.lower() or 'time' in col.lower():
-                        datetime_col = col
-                        break
-                
-                if datetime_col:
-                    df_2015 = pd.read_csv(path_2015, index_col=datetime_col, parse_dates=True)
-                else:
-                    df_2015 = pd.read_csv(path_2015, index_col=0, parse_dates=True)
-                
-                # Ensure datetime index
-                if not isinstance(df_2015.index, pd.DatetimeIndex):
-                    try:
-                        df_2015.index = pd.to_datetime(df_2015.index, utc=True).tz_localize(None)
-                    except:
-                        df_2015.index = pd.to_datetime(df_2015.index)
-                else:
-                    if df_2015.index.tz is not None:
-                        df_2015.index = df_2015.index.tz_localize(None)
-                
-                df_2015 = df_2015.sort_index()
-                dfs_to_combine.append(df_2015)
-                
-                print(f"    ✓ Loaded {len(df_2015):,} rows, {len(df_2015.columns)} columns")
-                print(f"    ✓ Date range: {df_2015.index.min()} to {df_2015.index.max()}")
-                
-            except Exception as e:
-                print(f"     ERROR loading 2015-2018 {key}: {e}")
-        else:
-            print(f"\n    2015-2018 file not found: {path_2015}")
-        
-        # Load 2019-2025 data
-        if path_2019 and Path(path_2019).exists():
-            print(f"\n  Loading 2019-2025 file: {path_2019}")
-            try:
-                df_preview = pd.read_csv(path_2019, nrows=5)
-                datetime_col = None
-                
-                for col in df_preview.columns:
-                    if col.lower() in [c.lower() for c in datetime_cols]:
-                        datetime_col = col
-                        break
-                    if 'date' in col.lower() or 'time' in col.lower():
-                        datetime_col = col
-                        break
-                
-                if datetime_col:
-                    df_2019 = pd.read_csv(path_2019, index_col=datetime_col, parse_dates=True)
-                else:
-                    df_2019 = pd.read_csv(path_2019, index_col=0, parse_dates=True)
-                
-                # Ensure datetime index
-                if not isinstance(df_2019.index, pd.DatetimeIndex):
-                    try:
-                        df_2019.index = pd.to_datetime(df_2019.index, utc=True).tz_localize(None)
-                    except:
-                        df_2019.index = pd.to_datetime(df_2019.index)
-                else:
-                    if df_2019.index.tz is not None:
-                        df_2019.index = df_2019.index.tz_localize(None)
-                
-                df_2019 = df_2019.sort_index()
-                dfs_to_combine.append(df_2019)
-                
-                print(f"    ✓ Loaded {len(df_2019):,} rows, {len(df_2019.columns)} columns")
-                print(f"    ✓ Date range: {df_2019.index.min()} to {df_2019.index.max()}")
-                
-            except Exception as e:
-                print(f"     ERROR loading 2019-2025 {key}: {e}")
-        else:
-            print(f"\n    2019-2025 file not found: {path_2019}")
-        
-        # ========== LOAD 2026 DATA (NEW) ==========
-        if path_2026 and Path(path_2026).exists():
-            print(f"\n  Loading 2026 file: {path_2026}")
-            try:
-                df_preview = pd.read_csv(path_2026, nrows=5)
-                datetime_col = None
-                
-                for col in df_preview.columns:
-                    if col.lower() in [c.lower() for c in datetime_cols]:
-                        datetime_col = col
-                        break
-                    if 'date' in col.lower() or 'time' in col.lower():
-                        datetime_col = col
-                        break
-                
-                if datetime_col:
-                    df_2026 = pd.read_csv(path_2026, index_col=datetime_col, parse_dates=True)
-                else:
-                    df_2026 = pd.read_csv(path_2026, index_col=0, parse_dates=True)
-                
-                # Ensure datetime index
-                if not isinstance(df_2026.index, pd.DatetimeIndex):
-                    try:
-                        df_2026.index = pd.to_datetime(df_2026.index, utc=True).tz_localize(None)
-                    except:
-                        df_2026.index = pd.to_datetime(df_2026.index)
-                else:
-                    if df_2026.index.tz is not None:
-                        df_2026.index = df_2026.index.tz_localize(None)
-                
-                df_2026 = df_2026.sort_index()
-                #  H1 2026 ONLY: curtail to 1 Jan - 30 Jun 2026. FIXED applied on 27/08/2026
-                df_2026 = df_2026.loc[:'2026-06-30']
-                dfs_to_combine.append(df_2026)
-                
-                print(f"    ✓ Loaded {len(df_2026):,} rows, {len(df_2026.columns)} columns")
-                print(f"    ✓ Date range: {df_2026.index.min()} to {df_2026.index.max()}")
-                
-            except Exception as e:
-                print(f"     ERROR loading 2026 {key}: {e}")
-        else:
-            print(f"\n    2026 file not found: {path_2026}")
-        
-        # Combine all periods
-        if len(dfs_to_combine) >= 2:
-            print(f"\n  🔗 Combining {len(dfs_to_combine)} periods...")
-            df_combined = pd.concat(dfs_to_combine, axis=0, sort=False)
-            df_combined = df_combined.sort_index()
-            # df_combined = df_combined.fillna(0)
-            #  FIX 27/08/2026: do NOT fillna(0). Missing prices/load/generation must stay
-            # NaN so gap hours are dropped in Cell 10 (dropna on 'price'),
-            # exactly like the colleague's loader. fillna(0) fabricated
-            # 0 €/MWh hours in 2015 that direct-matched wind/solar (SRMC 0-15)
-            
-            print(f"    ✓ Combined: {len(df_combined):,} rows, {len(df_combined.columns)} columns")
-            print(f"    ✓ Date range: {df_combined.index.min()} to {df_combined.index.max()}")
-            
-            data[key] = df_combined
-            
-        elif len(dfs_to_combine) == 1:
-            print(f"\n    Only one period available for {key}")
-            data[key] = dfs_to_combine[0]
-            
-        else:
-            print(f"\n   No data files found for {key}")
-            data[key] = pd.DataFrame()
-    
+                df.index = pd.to_datetime(df.index, utc=True).tz_localize(None)
+            except Exception:
+                df.index = pd.to_datetime(df.index)
+        elif df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+
+        df = df.sort_index()
+        # NOTE: no fillna(0) - missing values must stay NaN so gap hours are
+        # dropped downstream (fabricated zeros distorted early-year attribution)
+
+        data[key] = df
+        print(f"    ✓ Loaded {len(df):,} rows, {len(df.columns)} columns")
+        print(f"    ✓ Date range: {df.index.min()} to {df.index.max()}")
+
     return data
 
 
@@ -1542,7 +1379,7 @@ print(f"\n{'='*80}")
 print(f"LOADING AND COMBINING DATASETS (2015-2026)")
 print(f"{'='*80}")
 
-entsoe_data = load_entsoe_data_combined({}, DATA_PATHS, {})   # single merged file per type
+entsoe_data = load_entsoe_data(DATA_PATHS)
 
 # Extract dataframes
 df_prices = entsoe_data.get('prices', pd.DataFrame())
@@ -1551,12 +1388,12 @@ df_load = entsoe_data.get('load', pd.DataFrame())
 df_flows = entsoe_data.get('flows', pd.DataFrame())
 
 # 20260910 Added to cap inouyt ENTSO-E data to 1H 2026. Comment or delete to have year up to date or full 20026 when the data is complete
-# Cap all inputs at H1 2026 (END_2026 from Cell 2)
+# Cap all inputs at H1 2026 (END_DATE from Cell 2)
 for _name in ['df_prices', 'df_gen', 'df_load', 'df_flows']:
     _df = globals().get(_name)
     if _df is not None and len(_df) > 0:
-        globals()[_name] = _df.loc[:END_2026]
-        print(f"   ✂️ {_name}: capped at {END_2026} -> ends {globals()[_name].index.max()}")
+        globals()[_name] = _df.loc[:END_DATE]
+        print(f"   ✂️ {_name}: capped at {END_DATE} -> ends {globals()[_name].index.max()}")
 
 # ========================================
 # FX CONVERSION DISABLED
@@ -1679,7 +1516,7 @@ print(f"Ready for analysis!")
 print(f"{'='*80}")
 
 
-# In[11]:
+
 
 
 # FINAL VERIFICATION: Check entire pipeline (2015-2026)
@@ -1699,8 +1536,9 @@ print(f"   All columns normalized: {len(gen_cols_normalized) == len(df_gen.colum
 print(f"   Sample columns: {list(df_gen.columns[:5])}")
 print(f"   Date range: {df_gen.index.min()} to {df_gen.index.max()}")
 
-# 2. Check zone transition (DE_AT_LU, DE_LU, AT)
-print(f"\n2. ZONE TRANSITION CHECK:")
+# 2. Check zone transition (DE_AT_LU -> DE_LU + AT, October 2018)
+# This check  the split of the joint German-Austrian bidding zone
+print(f"\n2. ZONE TRANSITION CHECK (DE_AT_LU -> DE_LU + AT, Oct 2018):")
 
 # DE_AT_LU
 deatlu_cols = [col for col in df_gen.columns if col.endswith('_DE_AT_LU')]
@@ -1835,8 +1673,7 @@ for zone in ['DE_AT_LU', 'DE_LU', 'AT']:
 # 8. Year-by-year summary
 print(f"\n8. YEAR-BY-YEAR DATA SUMMARY:")
 
-# UPDATED: Include 2026
-years_to_check = [2015, 2018, 2019, 2025, 2026]
+years_to_check = sorted(df_gen.index.year.unique())
 for year in years_to_check:
     mask = df_gen.index.year == year
     if mask.sum() > 0:
@@ -1868,7 +1705,7 @@ else:
     print(f"\n ALL CHECKS PASSED - Ready for analysis!")
 
 
-# In[ ]:
+
 
 
 # Cell 6a - USER COMMODITY DATA LOADER (no-Platts mode)
@@ -1902,7 +1739,7 @@ else:
     print("Commodity source: Platts API")
 
 
-# In[ ]:
+
 
 
 # %% CELL 6 - GAS PRICES (research Cell 6)
@@ -2328,7 +2165,7 @@ print(f"   Rows: {len(gas_prices_df):,}")
 
 
 
-# In[ ]:
+
 
 
 # %% CELL 7 - EUA PRICES (research Cell 7)
@@ -2580,7 +2417,7 @@ print(f"   ✓ Saved: {co2_export_file}")
 print(f"   Rows: {len(co2_prices_df):,}")
 
 
-# In[ ]:
+
 
 
 # %% CELL 8 - COAL/OIL PRICES (research Cell 8)
@@ -2952,13 +2789,13 @@ print(f"   Rows: {len(commodity_prices_df):,}")
 print(f"   Columns: {', '.join(commodity_prices_df.columns.tolist())}")
 
 
-# In[18]:
+
 
 
 commodity_prices_df
 
 
-# In[ ]:
+
 
 
 # %% ==========================================================================
@@ -3129,25 +2966,6 @@ def load_reservoir_data_file(reservoir_file, period_name):
         traceback.print_exc()
         return {}
 
-
-def combine_reservoir_data(data_2015_2018, data_2019_2026):
-    """
-    Combine reservoir data from both periods.
-     Handles zone transition (DE_AT_LU → DE_LU)
-     2019-2026 file now includes data through 2026
-    
-    Args:
-        data_2015_2018: dict from 2015-2018 file
-        data_2019_2026: dict from 2019-2026 file (includes 2026)
-    
-    Returns:
-        dict: Combined reservoir data for all zones
-    """
-    print(f"\n{'='*80}")
-    print("COMBINING 2015-2018 AND 2019-2026 DATA")
-    print(f"{'='*80}")
-    
-    combined = {}
     
     # Get all unique zones from both periods
     all_zones = set(data_2015_2018.keys()) | set(data_2019_2026.keys())
@@ -3298,7 +3116,7 @@ else:
     print(f"    No reservoir data to export")
 
 
-# In[20]:
+
 
 
 for z in ['BG', 'RO', 'GR', 'ES', 'FR']:
@@ -3310,7 +3128,7 @@ for z in ['BG', 'RO', 'GR', 'ES', 'FR']:
             print(r[r.index.duplicated(keep=False)].head(6))
 
 
-# In[ ]:
+
 
 
 # %% CELL 10 - MASTER DF (research Cell 10)
@@ -3406,10 +3224,9 @@ def build_zone_master(zone, df_prices, df_gen, df_load, df_flows,
         master['gas_price'] = gas_price.reindex(master.index)
         master['gas_price'] = master['gas_price'].fillna(method='bfill').fillna(method='ffill')
         
-        # #  Fill any remaining NaNs with default
-        # if master['gas_price'].isna().any():
-        #     master['gas_price'] = master['gas_price'].fillna(30.0)
-        # Fixed 2026/08/27 to avoid filling with defaults
+    # Commodity prices: NaNs beyond bfill/ffill are left as NaN deliberately -
+    # no default values are invented (fix 2026/08/27); hours without prices
+    # drop out of the SRMC matching instead of being computed on fake inputs.
 
     if not co2_prices_df.empty:
         co2_price = get_zone_co2_price(co2_prices_df, zone)
@@ -3592,7 +3409,7 @@ print("=" * 80)
 print("\nReady to build master DataFrames for all zones!")
 
 
-# In[ ]:
+
 
 
 # %% CELL 10a - HYDRO SRMC FUNCTIONS (research 10a)
@@ -3727,7 +3544,7 @@ print("   DE_LU and AT (2019+) separate, DE_LU + CZ via AT proxy, PL via SE_4")
 print("=" * 80)
 
 
-# In[ ]:
+
 
 
 # %% CELL 11 - SRMC + 7-STEP (research Cell 11)
@@ -4122,14 +3939,18 @@ def calculate_srmc_all_techs(master_df, zone):
                 srmc['srmc_hydro_reservoir_max'] = (srmc_base + buffer).clip(upper=params['base_srmc_high'])
                 srmc['srmc_hydro_reservoir_max'] = srmc['srmc_hydro_reservoir_max'].clip(upper=gas_ceiling)
                 
-                # Enforce minimum spread
+                # Enforce minimum spread: after the gas-ceiling clip the band can
+                # collapse; keep at least one flexibility_buffer of width (control
+                # file, hydro_params sheet) around the midpoint.
+                min_spread = params['flexibility_buffer']
                 spread = srmc['srmc_hydro_reservoir_max'] - srmc['srmc_hydro_reservoir_min']
-                too_narrow = spread < 8.0
+                too_narrow = spread < min_spread
                 
                 if too_narrow.any():
                     mid = (srmc['srmc_hydro_reservoir_min'] + srmc['srmc_hydro_reservoir_max']) / 2
-                    srmc.loc[too_narrow, 'srmc_hydro_reservoir_min'] = (mid - 4.0).clip(lower=params['base_srmc_low'])
-                    srmc.loc[too_narrow, 'srmc_hydro_reservoir_max'] = (mid + 4.0).clip(upper=params['base_srmc_high'])
+                    half = min_spread / 2
+                    srmc.loc[too_narrow, 'srmc_hydro_reservoir_min'] = (mid - half).clip(lower=params['base_srmc_low'])
+                    srmc.loc[too_narrow, 'srmc_hydro_reservoir_max'] = (mid + half).clip(upper=params['base_srmc_high'])
                 
                 srmc['srmc_hydro_reservoir_avg'] = (srmc['srmc_hydro_reservoir_min'] + srmc['srmc_hydro_reservoir_max']) / 2
                 
@@ -4180,12 +4001,16 @@ def calculate_srmc_all_techs(master_df, zone):
                                                       None, params['base_srmc_high'])
             
 
+            # Enforce minimum spread: keep at least one flexibility_buffer of
+            # width (control file, hydro_params sheet) around the midpoint.
+            min_spread = params['flexibility_buffer']
             spread = srmc['srmc_pumped_storage_max'] - srmc['srmc_pumped_storage_min']
-            too_narrow = spread < 8.0
+            too_narrow = spread < min_spread
             if too_narrow.any():
                 mid = (srmc['srmc_pumped_storage_min'] + srmc['srmc_pumped_storage_max']) / 2
-                srmc.loc[too_narrow, 'srmc_pumped_storage_min'] = (mid - 4.0).clip(lower=params['base_srmc_low'])
-                srmc.loc[too_narrow, 'srmc_pumped_storage_max'] = (mid + 4.0).clip(upper=params['base_srmc_high'])
+                half = min_spread / 2
+                srmc.loc[too_narrow, 'srmc_pumped_storage_min'] = (mid - half).clip(lower=params['base_srmc_low'])
+                srmc.loc[too_narrow, 'srmc_pumped_storage_max'] = (mid + half).clip(upper=params['base_srmc_high'])
             
             # REQUIRED for price-setting: TECH_SRMC_MAP points hydro_pumped at this
             # column; without it every matching step skips PHS silently. (Re-added
@@ -4321,13 +4146,13 @@ else:
     print("   Run Cell 10 first to create master_test")
 
 
-# In[ ]:
+
 
 
 #  Cell 12 - SIMPLIFIED 3-STEP MARGINAL TECH IDENTIFICATION (2015-2026)
 
 # STEP 1-4: Direct match (±10 EUR tolerance) - domestic + neighbors
-# STEP 4.5: Scarcity pricing check (price > 1.5× gas SRMC)
+# STEP 4.5: Scarcity pricing check (price > SCARCITY_FACTOR × gas SRMC, control file)
 # STEP 5: Closest BELOW price (no limit) - domestic + neighbors
 # STEP 6: Lowest SRMC (last resort) - domestic + neighbors
 #  ALL FEATURES: Generation checks, price coupling, neighbor SRMC, pumped hydro logic, scarcity detection
@@ -4348,7 +4173,7 @@ print("=" * 80)
 UNIFORM_TOLERANCE = CFG.UNIFORM_TOLERANCE   # <- control file
 PRICE_TOLERANCE = CFG.PRICE_TOLERANCE   # <- control file
 FLOW_THRESHOLD = CFG.FLOW_THRESHOLD   # <- control file
-
+SCARCITY_FACTOR = CFG.SCARCITY_FACTOR   # <- control file
 
 
 def get_generation_threshold(tech_key, zone=None):
@@ -4647,7 +4472,8 @@ def identify_marginal_tech_7step_bulletproof_v3(row, master_df, srmc_df, zone, g
     
     # ========== PRE-FILTER: EXTRACT HOUR ==========
     hour = row.name.hour if hasattr(row.name, 'hour') else 12
-    NIGHT_HOURS = [0, 1, 2, 3, 4, 22, 23]
+    # NIGHT_HOURS comes from the control file (config sheet) via Cell 0 -
+    # [CFG-OWNED, local def removed]
     
     # PUMPED HYDRO: Check NET generation (generation - consumption)
     pumped_gen = get_generation_cached(row, 'hydro_pumped', gen_cache)
@@ -4795,7 +4621,7 @@ def identify_marginal_tech_7step_bulletproof_v3(row, master_df, srmc_df, zone, g
                 gas_srmc = srmc_df.loc[row.name, gas_srmc_col]
             
             if pd.notna(gas_srmc):
-                scarcity_threshold = 1.5 * gas_srmc
+                scarcity_threshold = SCARCITY_FACTOR * gas_srmc   # control file, config sheet
                 
                 if price_home > scarcity_threshold:
                     # FIRST: Check if gas is generating in HOME zone
@@ -5036,15 +4862,8 @@ def identify_marginal_tech_7step_bulletproof_v3(row, master_df, srmc_df, zone, g
             high_price_flag = price_home / gas_srmc
     
     # ========== CALCULATE PRICE SETTING ZONE (ROBUST FIX) ==========
-    # UPDATED FOR 2015-2026
-    KNOWN_ZONES = {
-        'AT', 'BE', 'BG', 'CH', 'CY', 'CZ', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR',
-        'HU', 'LT', 'LV', 'NL', 'PL', 'PT', 'RO', 'RS', 'SI', 'SK', 'AL', 'BA', 'ME', 'MK', 'MT', 'UA',
-        'DE_AT_LU', 'DE_LU', 'IE_SEM',
-        'DK_1', 'DK_2', 'NO_1', 'NO_2', 'NO_3', 'NO_4', 'NO_5', 'SE_1', 'SE_2', 'SE_3', 'SE_4',
-        'IT_NORD', 'IT_CNOR', 'IT_CSUD', 'IT_SUD', 'IT_SICI', 'IT_SARD',
-        'IT_BRNN', 'IT_FOGN', 'IT_ROSN', 'IT_CALA',
-    }
+    # KNOWN_ZONES: defined in Cell 0 from the zones sheet + RAW_DATA_ONLY_ZONES
+    # [CFG-OWNED, local def removed]
 
     price_setting_zones = set()
 
@@ -5286,7 +5105,7 @@ else:
     print("   Run Cells 10 and 11 first")
 
 
-# In[32]:
+
 
 
 cb = results_7step[results_7step['fallback_mode']=='closest_below']
@@ -5296,7 +5115,7 @@ print(cb[['marginal_tech','diag_closest_below_dist','diag_closest_above_tech',
           'diag_closest_above_dist','diag_swap_diff_fuel','diag_swap_diff_zone']].head(10))
 
 
-# In[ ]:
+
 
 
 # Cell 12e - Multi-Zone Processing with Bulletproof Error Handling (2015-2026)
@@ -5627,7 +5446,7 @@ print("\n" + "=" * 80)
  
 
 
-# In[ ]:
+
 
 
 # Cell 12e_EU - Multi-Zone Processing: ALL EU ZONES (Skip Already Processed) (2015-2026)
@@ -5890,7 +5709,7 @@ print("ALL EU ZONES PROCESSING COMPLETE (2015-2026)")
 print("=" * 80)
  
  
-# In[300]:
+
  
  
 # SCRATCH v3 - CONTESTED-HOURS SHARE (from all_zone_srmcs)
@@ -5933,7 +5752,7 @@ print(tab.to_string(index=False))
  
 
 
-# In[ ]:
+
 
 
 # Cell 12k_COUNTRY_AGGREGATION - Load-Weighted Price Setting for Multi-Zone Countries (2019-2026)
@@ -5951,17 +5770,11 @@ print("MULTI-ZONE COUNTRY AGGREGATION: LOAD-WEIGHTED PRICE SETTING (2019-2026)")
 print("Method: Annual Load-Weighted (Market Size) - Same as EU-Wide Analysis")
 print("=" * 80)
  
+
 # ========================================
-# DEFINE ALL KNOWN ZONE CODES
+# KNOWN_ZONES: defined in Cell 0 from the zones sheet + RAW_DATA_ONLY_ZONES
+# [CFG-OWNED, local def removed]
 # ========================================
-KNOWN_ZONES = {
-    'DE_LU', 'IT_NORD', 'IT_CNOR', 'IT_CSUD', 'IT_SUD', 'IT_SICI', 'IT_SARD',
-    'IT_CALA', 'IT_BRNN', 'SE_1', 'SE_2', 'SE_3', 'SE_4', 'DK_1', 'DK_2',
-    'NO_1', 'NO_2', 'NO_3', 'NO_4', 'NO_5',
-    'FI', 'FR', 'ES', 'PT', 'NL', 'BE', 'AT', 'CH', 'CZ', 'PL', 'HU', 'RO',
-    'BG', 'GR', 'HR', 'SI', 'SK', 'EE', 'LV', 'LT', 'GB', 'IE', 'AL', 'MK',
-    'RS', 'BA', 'ME', 'UA', 'BY', 'TR'
-}
  
 # ========================================
 # HELPER: EXTRACT BASE TECHNOLOGY
@@ -6203,7 +6016,10 @@ def calculate_country_fuel_mix_aggregated(all_zone_results, country, zones, year
     return fuel_mix
  
 # ========================================
-# APPLY TO MULTI-ZONE COUNTRIES (2019-2026)
+# APPLY TO MULTI-ZONE COUNTRIES
+# Aggregates bidding zones to country level. Period-agnostic: which zones are
+# active when is governed by the zones sheet of the control file (active_from /
+# active_to), not by this code.
 # ========================================
  
 MULTI_ZONE_COUNTRIES = {
@@ -6306,7 +6122,7 @@ print("=" * 80)
  
 
 
-# In[ ]:
+
 
 
 # Cell 12k_multi_year - EU-WIDE EVOLUTION: Price-Setting vs Generation Mix (2015-2026)
@@ -6377,8 +6193,8 @@ COLORS = CATEGORY_COLORS   # palette from control-file 'style' tab (Cell 0)
 categories = ['Coal', 'Lignite', 'Gas', 'Other Fossil Fuels',
               'Hydro Reservoir', 'Hydro RoR', 'Nuclear', 'Biomass', 'VRE']
 
-# ALL YEARS 2015-2026
-YEARS = list(range(2015, 2027))
+# Analysis years from the control file (config sheet: START_DATE / END_DATE)
+YEARS = list(range(START_DATE.year, END_DATE.year + 1))
 
 # ========================================
 # HELPER FUNCTIONS
@@ -6421,7 +6237,7 @@ _CLASSIFY_9_PINNED = classify_marginal_tech   # module-level pin used by the fra
 def get_generation_by_category(master_df, _map=dict(BASE_TO_CAT), _cats=tuple(categories)):
     """Total generation by the SAME 9 categories, from master_df columns."""
     category_totals = {cat: 0.0 for cat in _cats}
-
+# Spelling-variant patterns; semantic mapping lives in gen_tech_map; migration planned to control_file
     # base tech -> candidate column-name patterns
     gen_col_mapping = {
         'coal_derived_gas': ['gen_coal_derived_gas', 'coal_derived_gas'],
@@ -6779,7 +6595,7 @@ gen_by_cat_9    = get_generation_by_category
 classify_frac_9 = classify_marginal_tech_frac
 
 
-# In[21]:
+
 
 
 # Cell 12k_area - EU STACKED-AREA PAIR: Power Mix vs Price-Setting Mix (9 categories)
@@ -6833,14 +6649,14 @@ plt.show()
 print(f'Saved: {f}')
  
  
-# In[323]:
+
  
  
 # classify_marginal_tech = lambda s: 'CONTAMINATED'          # simulate a 6-cat cell
 # print(classify_frac_9('hydro_ror + solar'))                 # must print RoR + VRE, NOT CONTAMINATED
 
 
-# In[ ]:
+
 
 
 # Cell 12k_export - ZONE-LEVEL & COUNTRY-LEVEL EXPORT: Price-Setting vs Generation (2015-2026, 9 categories)
@@ -6876,7 +6692,7 @@ if len(categories) != 9:
     raise RuntimeError(f"Expected the 9-category scheme from Cell 12k_multi_year, found {len(categories)}: {categories}. "
                        "Re-run Cell 12k_multi_year so its definitions are the ones in memory.")
 
-YEARS_EXPORT = list(range(2015, 2027))
+YEARS_EXPORT = list(range(START_DATE.year, END_DATE.year + 1))
 
 # ========================================
 # ZONE -> MEMBER STATE MAPPING (EU bidding zones only)
@@ -7199,10 +7015,9 @@ print(f"   • PS shares use ALL hours as denominator; 'unknown_share_%' shows t
 print("\n" + "=" * 80)
 
 
-# In[325]:
 
 
-# In[23]:
+
 
 
 # Cell 12k_fossil_lines - FOSSIL SHARE OF PRICE-SETTING: ES, GR, IT_NORD (2015-2025)
@@ -7260,7 +7075,7 @@ print(t.pivot_table(index='geography', columns='year',
                     values='fossil_share_%').round(1).to_string())
 
 
-# In[ ]:
+
 
 
 # Cell 10.2: Analysis - Domestic vs Neighbour Price Setting (Country-Level Perspective)
@@ -7321,33 +7136,16 @@ for _c in list(TECH_CATEGORIES.keys()):
 # ========================================
 # DEFINE COUNTRY GROUPINGS
 # ========================================
- 
-COUNTRY_ZONES = {
-    'AT': ['AT'],
-    'BE': ['BE'],
-    'BG': ['BG'],
-    'CZ': ['CZ'],
-    'DE': ['DE_LU'],
-    'DK': ['DK_1', 'DK_2'],
-    'EE': ['EE'],
-    'ES': ['ES'],
-    'FI': ['FI'],
-    'FR': ['FR'],
-    'GR': ['GR'],
-    'HR': ['HR'],
-    'HU': ['HU'],
-    'IT': ['IT_NORD', 'IT_CNOR', 'IT_CSUD', 'IT_SUD', 'IT_SICI', 'IT_SARD', 'IT_CALA', 'IT_BRNN', 'IT_FOGN', 'IT_ROSN'],
-    'LT': ['LT'],
-    'LV': ['LV'],
-    'NL': ['NL'],
-    'PL': ['PL'],
-    'PT': ['PT'],
-    'RO': ['RO'],
-    'SE': ['SE_1', 'SE_2', 'SE_3', 'SE_4'],
-    'SI': ['SI'],
-    'SK': ['SK'],
-}
- 
+
+# Derived from the zones sheet (control file): EU-scope zones grouped by
+# country, restricted to zones active in the snapshot year (so the historical
+# DE_AT_LU zone drops out automatically for post-2018 snapshots).
+_zs = CFG.zones
+_active = ((_zs['active_from'] <= pd.Timestamp(f'{YEAR_H}-12-31')) &
+           (_zs['active_to'].isna() | (_zs['active_to'] >= pd.Timestamp(f'{YEAR_H}-01-01'))))
+COUNTRY_ZONES = (_zs[(_zs['eu_scope'] == True) & _active]
+                 .groupby('country')['zone'].apply(list).to_dict())
+
 # Create reverse mapping: zone → country
 ZONE_TO_COUNTRY = {}
 for country, zones in COUNTRY_ZONES.items():
@@ -7392,7 +7190,10 @@ results = []
 neighbour_tech_details = []
  
 # Get all EU zones
-NON_EU_ZONES = ['GB', 'CH', 'NO_1', 'NO_2', 'NO_3', 'NO_4', 'NO_5', 'DE_AT_LU', 'IE_SEM', 'UA', 'ME', 'AL', 'BA', 'MK', 'RS']
+# Derived from the zones sheet: non-EU-scope zones. DE_AT_LU needs no
+# special-casing here - the activity filter above (zones active in YEAR_H)
+# already keeps it out of COUNTRY_ZONES for post-2018 snapshot years.
+NON_EU_ZONES = CFG.zones.loc[CFG.zones['eu_scope'] != True, 'zone'].tolist()
 EU_ZONES = [z for z in complete_zones if z not in NON_EU_ZONES]
  
 # Process by country
@@ -8353,7 +8154,7 @@ print("\n" + "=" * 80)
  
 
 
-# In[25]:
+
 
 
 # Cell 10.4b - EU RATE OF CROSS-BORDER PRICE-SETTING (binary per zone-hour) + BAR CHART
@@ -8421,7 +8222,7 @@ plt.show()
 print(f"Saved: crossborder_simple_rate_EU.csv + crossborder_rate_EU_bars_2015_2025.png")
 
 
-# In[ ]:
+
 
 
 # Cell 12f - EXPORT HOURLY MARGINAL TECH RESULTS FOR ALL ZONES (2015, 2019, 2025 & 2026)
@@ -8444,13 +8245,12 @@ else:
     # CONFIGURATION
     # ========================================
     
-    # DEFAULT: Export 2015, 2019, 2025 & 2026
-    # years_to_export = [2015, 2019, 2025, 2026]
+
     
-    # OPTIONAL: Uncomment below to export ALL years 2015-2026
-    years_to_export = list(range(2015, 2027))
+    # OPTIONAL: Uncomment below to export ALL years 
+    years_to_export = list(range(START_DATE.year, END_DATE.year + 1))
     
-    # OPTIONAL: Export only recent years
+    # OPTIONAL: Export only specific years
     # years_to_export = [2019, 2025, 2026]
     
     print(f"\n📅 Exporting years: {years_to_export}")
@@ -8834,7 +8634,7 @@ else:
     
 
 
-# In[ ]:
+
 
 
 

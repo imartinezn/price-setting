@@ -1,0 +1,21 @@
+name: price_setting_env
+
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.9
+  - pandas=2.2
+  - numpy=1.26
+  - matplotlib=3.9
+  - openpyxl=3.1
+  - plotly=5.15
+  - jupyter
+  - pip
+  - pip:
+      # Only for downloading the input data from the ENTSO-E Transparency
+      # Platform; not needed to run the main pipeline:
+      - entsoe-py==0.7.8
+      # Platts mode only (COMMODITY_SOURCE=platts, licensed S&P Global feed):
+      # pip install spgci==0.0.25
