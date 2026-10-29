@@ -27,7 +27,7 @@ The repository contains the following files:
 
 The most recent version of the algorithm was written for Python 3.9.
 
-The [envs](https://github.com/imartinezn/price-setting/tree/main/env) folder contains a .yml configuration file to install the needed packages to run the code.
+The [env](https://github.com/imartinezn/price-setting/tree/main/env) folder contains a .yml configuration file to install the needed packages to run the code.
 
 
 ## License
