@@ -3,7 +3,7 @@
 
 ## Introduction
 
-This repository contains the code behind the manuscript "Price-setting tipping points in decarbonising EU electricity markets" (in preparation), an open source framework for reverse-engineering price-setting technologies based on observed generation, cross-border flows, wholesale prices, and commodity costs. 
+This repository contains the code behind the manuscript "_Price-setting tipping points in decarbonising EU electricity markets_" (Martínez et al., in preparation), an open source framework for reverse-engineering price-setting technologies based on observed generation, cross-border flows, wholesale prices, and commodity costs. 
 
 This framework is used to assess a decade of hourly data across EU bidding zones and capture technological marginality across the full generation spectrum, from variable renewables (VRE, i.e. solar and wind power) and hydropower to nuclear and fossil-powered units. 
 
@@ -27,7 +27,7 @@ The repository contains the following files:
 
 The most recent version of the algorithm was written for Python 3.9.
 
-The [envs](https://github.com/imartinezn/price-setting/tree/master/envs) folder contains a .yml configuration file to install the needed packages to run the code.
+The [envs](https://github.com/imartinezn/price-setting/tree/main/env) folder contains a .yml configuration file to install the needed packages to run the code.
 
 
 ## License
